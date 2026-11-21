@@ -113,9 +113,10 @@ The flow is **Order-first**, as the brief asks. The Order tab stays open for the
 
 ```mermaid
 flowchart TD
+    P["Payment method:<br>reuse or create"] --> A
     A["New Order<br>Date, Cust.Ref., Net, With VAT"] --> B{"Debtor in the<br>address selector?"}
     B -- "one exact match" --> D["Debtor selected in the Order"]
-    B -- "none" --> C["Create Debtor<br>(+ payment method if missing)"] --> D
+    B -- "none" --> C["Create Debtor"] --> D
     D --> E{"For each item:<br>Product in the selector?"}
     E -- "one exact match" --> G["Line: qty, discount"]
     E -- "none" --> F["VAT 19%: reuse or create<br>Create Product"] --> G
@@ -129,10 +130,10 @@ flowchart TD
 | Step | What the program does | How it confirms | Stops for manual review when |
 |---|---|---|---|
 | 0 Pre-flight | Checks the preconditions. Searches Data > Documents for the Cust.Ref. | | An Order with this Cust.Ref. already exists. This prevents a duplicate on a re-run. |
+| 0b Payment method | Checked for **every** order, right after pre-flight and before any editor is open. An open editor doesn't refresh its payment list (G23), and both a new Debtor and the Invoice need the method, even for an existing customer. Data > terms of payment: reused if it exists; otherwise new, with Name = Description = method, the mapped code, all days and discounts 0, not standard. Saves once. | The method appears in the Debtor's and the Invoice's payment lists. | The method has no known code, or exists twice. |
 | 1 New Order | Create: New Order. Keeps the proposed No., sets Date and Cust.Ref., Net, With VAT. | Reads each field back. | A value doesn't stick. |
 | 2 Debtor | Opens the address selector and searches the company. | Exactly one row where Company, First Name, Name, ZIP and City all match. Selects it, OK, then compares the Order's addresses with the image. | Several rows match, or a row has the company but differs elsewhere. |
-| 2a Payment method | Checked **before** the Debtor editor opens, because an open Debtor editor doesn't refresh its list (G23). Data > terms of payment: reused if it exists; otherwise new, with Name = Description = method, the mapped code, all days and discounts 0, not standard. Saves once. | The method appears in the Debtor's payment list. | The method has no known code, or exists twice. |
-| 2b Create Debtor | New contact. Keeps the Customer ID, Salutation `---`. Main address gets the Invoice role, plus a second address with the Delivery role when they differ. Miscellaneous: alias, 0 % discount, Net, payment method. Saves once. | Back in the Order, the new Debtor is now the one exact row. | Fakturama warns "Duplicate Contact", or it's still not found after saving. |
+| 2a Create Debtor | New contact. Keeps the Customer ID, Salutation `---`. Main address gets the Invoice role, plus a second address with the Delivery role when they differ. Miscellaneous: alias, 0 % discount, Net, payment method. Saves once. | Back in the Order, the new Debtor is now the one exact row. | Fakturama warns "Duplicate Contact", or it's still not found after saving. |
 | 3 Products, each in image order | Opens the product selector and searches the SKU. | One row with Item No. = SKU: select, OK. | Rows conflict. |
 | 3a VAT | Data > VATs, search `VAT 19%`. | Reused only if Name `VAT 19%`, value 19 and code S all match. Otherwise creates it once, without touching the standard VAT. | Same name but a different value or code. |
 | 3b Create Product | Item Number = SKU, Name = Description = text, gross price (section 4), cost 0, the exact VAT, stock 0. Saves once. | Selecting it again from the Order works. | It's not found after saving. |

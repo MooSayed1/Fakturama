@@ -49,8 +49,9 @@ OUR_TABS = {"New Order", "New Debtor", "New product", "New TAX Rate",
 def run(order: Order, run_dir: Path) -> None:
     r = Run(run_dir)
     preflight(r, order)                                       # 0. safe to start?
+    ensure_payment_method(r, order.payment.method)            #    payment method exists (G23)
     open_order(r, order)                                      # 1. New Order header
-    resolve_debtor(r, order)                                  # 2. Debtor (+ payment method)
+    resolve_debtor(r, order)                                  # 2. Debtor
     for number, item in enumerate(order.items, start=1):
         resolve_product_line(r, order, item, number)          # 3. Products (+ VAT) and lines
     order_no = save_order(r, order)                           # 4. totals, save the Order
@@ -280,12 +281,9 @@ def check_order_addresses(r: Run, order: Order) -> None:
 # ---------- creating ----------
 
 def create_debtor(r: Run, order: Order) -> None:
-    """New contact, filled from the image, saved once."""
+    """New contact, filled from the image, saved once. Its payment method
+    already exists: run() makes sure of that before any editor is open."""
     d, bill, ship = order.debtor, order.billing_address, order.delivery_address
-    # An open Debtor editor doesn't refresh its payment list (UI-MAP G23), so the
-    # payment method is resolved first; the Debtor can then be saved once.
-    ensure_payment_method(r, order.payment.method)
-
     ui.press(ui.find(r.window, "SplitButtonControl", "Create a new contact", depth=8))
     ed = ui.editor(r.window, "New Debtor")
     log.info("New Debtor: Customer ID %s (kept)", ui.get_text(ui.find(ed, "EditControl", "Customer ID")))
@@ -346,7 +344,11 @@ def fill_address(ed, address: Address, roles: list[str]) -> None:
 
 
 def ensure_payment_method(r: Run, method: str) -> None:
-    """Data > terms of payment: reuse the method if it exists, else create it once."""
+    """Data > terms of payment: reuse the method if it exists, else create it once.
+
+    Runs at the start of every order, before any editor is open: an open
+    editor doesn't refresh its payment list (UI-MAP G23), and both a new
+    Debtor and the Invoice need the method, even for an existing customer."""
     ui.open_menu(r.window, "Data", "terms of payment")
     view = ui.find(r.window, "TabControl", "terms of payment", depth=10)
     table = ui.table_in(view)
