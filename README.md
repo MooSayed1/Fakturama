@@ -75,6 +75,9 @@ uv run python -m image_to_cash samples/order.png
 | `--from-json` | Reuses the saved JSON instead of calling Gemini (free, repeatable) |
 | `--json PATH` | Reads or saves the extracted order at another path, e.g. `samples/order.expected.json` |
 | `--extract-only` | Stops after extraction and checks; Fakturama isn't touched |
+| `--slow [SECONDS]` | Slow motion to watch the run: waits after every action in Fakturama (1 second by default) and types slower |
+
+While it runs, don't touch the mouse or keyboard: the program types and clicks like a user.
 
 The exit code is `0` when everything is saved and verified, and `2` when the run stopped for manual review. In both cases the reason is in `runs/<time>/run.log`, next to the screenshots.
 

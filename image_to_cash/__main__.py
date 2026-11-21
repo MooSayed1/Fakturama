@@ -3,6 +3,7 @@
     uv run python -m image_to_cash samples/order.png                 # LLM reads the image
     uv run python -m image_to_cash samples/order.png --from-json     # reuse the saved reading
     uv run python -m image_to_cash samples/order.png --extract-only  # stop before Fakturama
+    uv run python -m image_to_cash samples/order.png --slow          # slow motion, to watch it
 
 Exit codes: 0 = done and verified, 2 = stopped for manual review.
 """
@@ -29,6 +30,8 @@ def main() -> int:
                         help="use the saved JSON instead of calling the LLM")
     parser.add_argument("--extract-only", action="store_true",
                         help="extract and validate, but don't touch Fakturama")
+    parser.add_argument("--slow", type=float, nargs="?", const=1.0, default=0.0, metavar="SECONDS",
+                        help="slow motion: wait after every action in Fakturama (default 1 second)")
     args = parser.parse_args()
     json_path = args.json or args.image.with_suffix(".extracted.json")
 
@@ -60,7 +63,10 @@ def main() -> int:
             return 0
 
         # Stages 3 and 4: drive Fakturama, then verify
-        from . import flow
+        from . import flow, ui
+        ui.SLOW = args.slow
+        if args.slow:
+            log.info("Slow motion: %s s after every action", args.slow)
         flow.run(order, run_dir)
         log.info("DONE: Order and paid Invoice saved and verified. Evidence in %s", run_dir)
         return 0

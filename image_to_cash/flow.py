@@ -70,6 +70,8 @@ def preflight(r: Run, order: Order) -> None:
     duplicate = existing_order(r, order.external_reference)
     if duplicate:  # re-running must not create a second Order
         raise ManualReview(f"Order {duplicate} already has Cust.Ref. {order.external_reference}")
+    log.info("Pre-flight OK: no dialog, no clashing tab, no Order with Cust.Ref. %s yet",
+             order.external_reference)
     r.shot("preflight")
 
 

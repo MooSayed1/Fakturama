@@ -26,6 +26,16 @@ from .ocr import OcrWord, read_lines  # noqa: E402
 TIMEOUT = 10  # seconds to wait for a control or dialog before giving up
 P = auto.PatternId
 
+# Slow motion (--slow): seconds to wait after every visible action, so a person
+# can follow the run. Typing slows down too (SLOW / 10 seconds per key). 0 = full speed.
+SLOW = 0.0
+
+
+def pause() -> None:
+    """In slow motion, wait a moment after a visible action."""
+    if SLOW:
+        time.sleep(SLOW)
+
 
 # ---------- finding things ----------
 
@@ -99,11 +109,13 @@ def editor(window, tab_name: str):
 def keys(text: str) -> None:
     """Send keystrokes to the focused control, e.g. '{Ctrl}s'."""
     auto.SendKeys(text, waitTime=0.3)
+    pause()
 
 
 def click(control) -> None:
     """Click the middle of the control. The position comes from UIA right now."""
     control.Click(simulateMove=False, waitTime=0.3)
+    pause()
 
 
 def press(button) -> None:
@@ -113,6 +125,7 @@ def press(button) -> None:
         click(button)
     else:
         pattern.Invoke()
+        pause()
     time.sleep(0.3)
 
 
@@ -131,7 +144,8 @@ def set_text(edit, value: str) -> None:
     time.sleep(0.1)
     keys("{Ctrl}a")
     if value:
-        auto.SendKeys(value.replace("{", "{{}").replace("}", "{}}"), interval=0.01, waitTime=0.2)
+        auto.SendKeys(value.replace("{", "{{}").replace("}", "{}}"), interval=0.01 + SLOW / 10, waitTime=0.2)
+        pause()
     else:
         keys("{Delete}")
     actual = get_text(edit)
@@ -144,6 +158,7 @@ def set_search(edit, value: str) -> None:
     empty in Fakturama (UI-MAP G15), so the caller checks the filtered rows."""
     edit.GetPattern(P.ValuePattern).SetValue(value)
     time.sleep(1.5)
+    pause()
 
 
 def number_in(text: str) -> Decimal:
@@ -159,7 +174,7 @@ def type_number(edit, value: Decimal, what: str) -> None:
     edit.SetFocus()
     time.sleep(0.2)
     keys("{Ctrl}a")
-    auto.SendKeys(f"{value:f}", interval=0.02, waitTime=0.2)
+    auto.SendKeys(f"{value:f}", interval=0.02 + SLOW / 10, waitTime=0.2)
     keys("{Tab}")  # leave the field so Fakturama parses and formats it
     shown = get_text(edit)
     if number_in(shown) != Decimal(value):
@@ -196,6 +211,7 @@ def set_checked(checkbox, checked: bool) -> None:
     if (pattern.ToggleState == 1) != checked:
         pattern.Toggle()
         time.sleep(0.3)
+        pause()
     if (pattern.ToggleState == 1) != checked:
         raise ManualReview(f"checkbox {checkbox.Name!r} did not change")
 
@@ -261,6 +277,7 @@ def open_menu(window, menu: str, item: str) -> None:
             raise ManualReview(f"menu entry {menu} > {item} not found")
     entry.GetPattern(P.InvokePattern).Invoke()
     time.sleep(1.5)
+    pause()
 
 
 def save_active_editor(window, editor_pane) -> None:
@@ -378,6 +395,7 @@ def click_text(table, text: str, shot_path: Path, double: bool = False) -> None:
     auto.Click(x, y, waitTime=0.05 if double else 0.5)
     if double:
         auto.Click(x, y, waitTime=0.8)
+    pause()
 
 
 def click_cell(table, column_header: str, shot_path: Path) -> None:
@@ -403,6 +421,7 @@ def click_cell(table, column_header: str, shot_path: Path) -> None:
     rect = table.BoundingRectangle
     auto.Click(int(rect.left + header.x + header.width / 2),
                int(rect.top + last.y + last.height / 2), waitTime=0.5)
+    pause()
 
 
 def click_first_decimal_in_last_row(table, shot_path: Path) -> None:
@@ -430,3 +449,4 @@ def click_first_decimal_in_last_row(table, shot_path: Path) -> None:
     rect = table.BoundingRectangle
     auto.Click(int(rect.left + number.x + number.width / 2),
                int(rect.top + number.y + number.height / 2), waitTime=0.5)
+    pause()
