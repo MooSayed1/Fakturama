@@ -59,7 +59,10 @@ The image's Customer ID is read but not used, because Fakturama proposes its own
   - confident mistakes: caught by the validation in section 4
   - needing an API key: a free Gemini key is enough, since there's one call per image and the result is cached
   - sending data to a third party: on the free tier Google may use what it receives, which is acceptable here because the sample data is synthetic
-- Windows' built-in OCR stays available as the fallback. It's also the tool used for reading the screen (section 5).
+- **Fallback when Gemini is unavailable** (overloaded, rate-limited, or no answer within 20 s):
+  - The next free model is tried. There are four, each with its own capacity, and each read the sample exactly like the human reading. The fast "lite" models (about 3 s) come first.
+  - If none answers, the run stops for manual review within about a minute. A saved reading (`--from-json`) or a JSON written by hand from the image still works, and goes through the same checks.
+- **OCR is not a fallback reader.** On the sample, Windows OCR reads `CHR-ERG-01` as `CHR-ERG-OI` and misses the `10%` discount completely. It's used as a second, independent reader instead (section 4), and for reading the screen (section 5).
 
 ## 4. Validating before touching Fakturama
 
@@ -74,7 +77,8 @@ Fakturama is only touched once all of these pass:
 4. **Business rules.**
    - The payment method has a known Fakturama code: Bank Transfer → *Credit transfer*, Credit Card → *Credit card*, SEPA Direct Debit → *SEPA direct debit*.
    - PAID requires a payment date.
-5. **Derived values** are computed once here. Example: the product's gross list price is `round(unit_net × (1 + vat/100), 2)`, which gives 297.50 and 47.60 for the sample.
+5. **OCR witness.** Math can't check names or streets. So every text value from the LLM must also appear, roughly (similarity ≥ 0.7), in what Windows OCR reads from the same image. That catches invented text, not one-letter typos.
+6. **Derived values** are computed once here. Example: the product's gross list price is `round(unit_net × (1 + vat/100), 2)`, which gives 297.50 and 47.60 for the sample.
 
 If any check fails, the run stops before Fakturama is touched.
 

@@ -18,7 +18,7 @@ flowchart LR
     VER -- "mismatch" --> STOP
 ```
 
-1. **Extract:** a vision LLM (Google Gemini, free tier) turns the image into schema-checked JSON. The result is saved, so later runs don't call the model again.
+1. **Extract:** a vision LLM (Google Gemini, free tier) turns the image into schema-checked JSON. The result is saved, so later runs don't call the model again. If a model is busy or doesn't answer, the next free Gemini model is tried.
 2. **Validate:** line totals, net, VAT and gross must add up before Fakturama is touched.
 3. **Drive Fakturama:** UI Automation finds controls by name or by their label, never by coordinates.
    - Fakturama's custom-drawn tables are read with the app's own copy.

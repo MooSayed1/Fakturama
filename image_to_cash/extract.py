@@ -22,9 +22,16 @@ log = logging.getLogger("image_to_cash")
 
 # ---------- the LLM call ----------
 
-# Free-tier Flash models, tried in this order: Google's recommended one first,
-# the previous one when it is overloaded (503). GEMINI_MODEL in .env picks one.
-MODELS = ["gemini-3.8-flash", "gemini-3.7-flash"]
+# Free-tier models, tried in this order until one answers. Each model has its
+# own capacity and quota, so when one is overloaded (503) or rate-limited (429),
+# another usually isn't. Measured on 2026-11-21: all four read samples/order.png
+# exactly like the human reading (samples/order.expected.json); the two "lite"
+# models answer in about 3 s, the other two in about 17 s. The newest models
+# (3.7, 3.8) answered 503 or hung every time, so they are not used.
+# GEMINI_MODEL in .env picks one model instead.
+MODELS = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-3.6-flash"]
+UNAVAILABLE = {404, 429, 500, 503, 504}  # model gone, rate-limited, overloaded: try the next one
+REQUEST_TIMEOUT_MS = 20_000  # no answer within 20 s counts as unavailable: try the next one
 
 PROMPT = """You are reading a sales order document.
 Extract every value into the JSON schema you were given.
@@ -38,41 +45,49 @@ Rules:
 
 
 def extract_with_llm(image_path: Path) -> Order:
-    """One call to Gemini: image + instructions in, schema-checked Order out."""
+    """Image + instructions in, schema-checked Order out.
+
+    Fallback: the models in MODELS are tried one after another. If none of
+    them answers, the run stops for manual review (fast, about a minute at
+    most): a saved reading (--from-json) still works.
+    """
     from google import genai  # imported here so --from-json runs need no Gemini setup
     from google.genai import errors, types
 
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         raise ManualReview("GEMINI_API_KEY is not set (put it in .env), or use --from-json")
-    client = genai.Client(api_key=api_key)
+    client = genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=REQUEST_TIMEOUT_MS))
     chosen = os.environ.get("GEMINI_MODEL")
-    for model in [chosen] if chosen else MODELS:
-        for attempt in (1, 2):
-            try:
-                response = client.models.generate_content(
-                    model=model,
-                    contents=[
-                        types.Part.from_bytes(data=Path(image_path).read_bytes(), mime_type="image/png"),
-                        PROMPT,
-                    ],
-                    config=types.GenerateContentConfig(
-                        response_mime_type="application/json",
-                        response_schema=Order,   # Gemini must answer with exactly these fields
-                        temperature=0,           # as repeatable as possible
-                    ),
-                )
-            except errors.APIError as error:  # bad key, unknown model, busy, network...
-                if error.code not in (429, 503):
-                    raise ManualReview(f"the Gemini call failed: {error}") from error
-                log.warning("%s is busy (%s), attempt %s of 2", model, error.code, attempt)
-                time.sleep(10)
-                continue
-            if response.parsed is None:
-                raise ManualReview(f"the LLM answer did not match the schema: {response.text!r}")
-            log.info("Image read by %s", model)
-            return response.parsed
-    raise ManualReview("Gemini stayed busy on every model: try again later, or use --from-json")
+    models = [chosen] if chosen else MODELS
+    image = types.Part.from_bytes(data=Path(image_path).read_bytes(), mime_type="image/png")
+    for model in models:
+        log.info("Asking %s to read the image...", model)
+        start = time.time()
+        try:
+            response = client.models.generate_content(
+                model=model,
+                contents=[image, PROMPT],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=Order,   # Gemini must answer with exactly these fields
+                    temperature=0,           # as repeatable as possible
+                ),
+            )
+        except errors.APIError as error:
+            if error.code not in UNAVAILABLE:  # e.g. a wrong key: no point trying other models
+                raise ManualReview(f"the Gemini call failed: {error}") from error
+            log.warning("%s is unavailable (%s %s): trying the next model", model, error.code, error.status)
+            continue
+        except Exception as error:  # no internet, timeout
+            log.warning("%s could not be reached (%s): trying the next model", model, error)
+            continue
+        if response.parsed is None:
+            raise ManualReview(f"the LLM answer did not match the schema: {response.text!r}")
+        log.info("Image read by %s in %.0f s", model, time.time() - start)
+        return response.parsed
+    raise ManualReview("no Gemini model answered: try again later, use --from-json with a saved "
+                       "reading, or write the JSON by hand from the image")
 
 
 # ---------- the OCR witness ----------
@@ -150,5 +165,5 @@ def load_or_extract(image_path: Path, json_path: Path, use_cached: bool) -> Orde
             raise ManualReview(f"--from-json given, but {json_path} does not exist")
         return Order.model_validate_json(json_path.read_text(encoding="utf-8"))
     order = extract_with_llm(image_path)
-    json_path.write_text(order.model_dump_json(indent=2), encoding="utf-8")
+    json_path.write_text(order.model_dump_json(indent=2), encoding="utf-8", newline="\n")  # LF, like the repo
     return order
