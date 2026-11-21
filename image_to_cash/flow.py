@@ -437,13 +437,16 @@ def select_product(r: Run, item: Item) -> bool:
 def set_line(r: Run, item: Item) -> None:
     """Type qty and discount into the new (last) line, then check its numbers."""
     table = ui.table_in(ui.editor(r.window, ORDER_TAB))
+    # Find the Discount column now, before any cell is edited (UI-MAP G30).
+    discount_column = (ui.column_position(table, "Discount", r.scratch("discount-column"))
+                       if item.discount_pct != 0 else None)
     if item.qty != 1:
         ui.click_first_decimal_in_last_row(table, r.scratch("qty-cell"))
         ui.keys(f"{item.qty:f}")
         ui.keys("{Enter}")
         time.sleep(0.8)
     if item.discount_pct != 0:
-        ui.click_cell(table, "Discount", r.scratch("discount-cell"))
+        ui.click_cell(table, discount_column, r.scratch("discount-cell"))
         ui.keys(f"{item.discount_pct:f}")
         ui.keys("{Enter}")
         time.sleep(0.8)

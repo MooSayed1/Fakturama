@@ -37,6 +37,7 @@ Legend: ✅ visible and usable through UIA · ⚠️ visible but needs a workaro
 | G27 | Debtor addresses print the ZIP with a country prefix (`DE-10117 Berlin`). The Order shows only the *Invoice address* tab. | Address checks accept the prefix. |
 | G28 | After a table copy (Ctrl+A), the rows **stay selected**: small bold italic text on a blue background. Scaled to 2000 px, OCR read `Northstar` as `star` there. | OCR scales screenshots to 4000 px wide, which reads them correctly. |
 | G29 | The mouse stays where the last click left it. On the "select a product" icon, its **tooltip** ("Pick an item from the list of all products") covers the Qty cell of the last item line, so OCR took the Discount's `0.00` as the quantity. | Before every OCR screenshot, the mouse moves to the window's title bar. The qty cell must also be left of the "Item No." header. |
+| G30 | Pressing Enter in an item cell saves it, then opens the **first row's** Qty cell for editing. The column headers are light gray, and in that state OCR sometimes can't read them, so the Discount column couldn't be found. | The Discount column is located before the line is edited; afterwards only the last row's position is read again. |
 
 ## Screens
 

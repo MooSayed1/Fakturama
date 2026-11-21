@@ -413,30 +413,42 @@ def click_text(table, text: str, shot_path: Path, double: bool = False) -> None:
     pause()
 
 
-def click_cell(table, column_header: str, shot_path: Path) -> None:
-    """Click the cell of the LAST row under a column header.
-    x: where OCR sees the header word. y: the last text row."""
+def column_position(table, column_header: str, shot_path: Path) -> tuple[float, float]:
+    """Where a column is: (x of the middle of its header, bottom of the header
+    row), as OCR sees them now. Call it BEFORE editing a row: while a cell is
+    being edited, the light-gray header can't be read reliably (UI-MAP G30)."""
+    park_mouse(table)
+    for _attempt in range(3):
+        table.CaptureToImage(str(shot_path))
+        lines = read_lines(shot_path)
+        if lines:
+            header_bottom = lines[0].y + lines[0].height
+            headers = []  # single words, plus pairs of neighbouring words ("Item No.")
+            for line in lines:
+                if line.y <= header_bottom:
+                    headers += line.words
+                    headers += [OcrWord(f"{a.text} {b.text}", a.x, a.y, b.x + b.width - a.x, a.height)
+                                for a, b in zip(line.words, line.words[1:])]
+            score, header = max(((SequenceMatcher(None, column_header.lower(), w.text.lower()).ratio(), w)
+                                 for w in headers), key=lambda pair: pair[0], default=(0, None))
+            if header is not None and score >= 0.75:
+                return header.x + header.width / 2, header_bottom
+        time.sleep(0.5)
+    raise ManualReview(f"could not find the column {column_header!r}")
+
+
+def click_cell(table, column: tuple[float, float], shot_path: Path) -> None:
+    """Click the cell of the LAST row in a column found by column_position().
+    x: from the column; y: the lowest text row on a fresh screenshot."""
+    x, header_bottom = column
     park_mouse(table)
     table.CaptureToImage(str(shot_path))
-    lines = read_lines(shot_path)
-    if not lines:
-        raise ManualReview("the table looks empty")
-    header_bottom = lines[0].y + lines[0].height
-    headers = []  # single words, plus pairs of neighbouring words ("Item No.")
-    for line in lines:
-        if line.y <= header_bottom:
-            headers += line.words
-            headers += [OcrWord(f"{a.text} {b.text}", a.x, a.y, b.x + b.width - a.x, a.height)
-                        for a, b in zip(line.words, line.words[1:])]
-    score, header = max(((SequenceMatcher(None, column_header.lower(), w.text.lower()).ratio(), w)
-                         for w in headers), key=lambda pair: pair[0], default=(0, None))
-    rows = [line for line in lines if line.y > header_bottom + 2]
-    if header is None or score < 0.75 or not rows:
-        raise ManualReview(f"could not find the {column_header!r} cell of the last row")
+    rows = [line for line in read_lines(shot_path) if line.y > header_bottom + 2]
+    if not rows:
+        raise ManualReview("could not find the last row of the table")
     last = max(rows, key=lambda line: line.y)
     rect = table.BoundingRectangle
-    auto.Click(int(rect.left + header.x + header.width / 2),
-               int(rect.top + last.y + last.height / 2), waitTime=0.5)
+    auto.Click(int(rect.left + x), int(rect.top + last.y + last.height / 2), waitTime=0.5)
     pause()
 
 
