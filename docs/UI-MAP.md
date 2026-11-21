@@ -35,6 +35,8 @@ Legend: ✅ visible and usable through UIA · ⚠️ visible but needs a workaro
 | G25 | The **"Save Parts"** prompt (closing an unsaved editor) can't be reliably unticked through UIA or the keyboard, so OK may save. | The program never closes an unsaved editor. |
 | G26 | Windows OCR's async calls **deadlock** in the UI Automation thread (a single-threaded COM apartment). | OCR runs in its own worker thread. |
 | G27 | Debtor addresses print the ZIP with a country prefix (`DE-10117 Berlin`). The Order shows only the *Invoice address* tab. | Address checks accept the prefix. |
+| G28 | After a table copy (Ctrl+A), the rows **stay selected**: small bold italic text on a blue background. Scaled to 2000 px, OCR read `Northstar` as `star` there. | OCR scales screenshots to 4000 px wide, which reads them correctly. |
+| G29 | The mouse stays where the last click left it. On the "select a product" icon, its **tooltip** ("Pick an item from the list of all products") covers the Qty cell of the last item line, so OCR took the Discount's `0.00` as the quantity. | Before every OCR screenshot, the mouse moves to the window's title bar. The qty cell must also be left of the "Item No." header. |
 
 ## Screens
 

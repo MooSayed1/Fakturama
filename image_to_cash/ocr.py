@@ -24,7 +24,10 @@ from winrt.windows.media.ocr import OcrEngine
 from winrt.windows.storage.streams import DataWriter, InMemoryRandomAccessStream
 
 # Windows OCR misses small text. Images narrower than this are scaled up first.
-MIN_WIDTH = 2000
+# 4000, not 2000: after a table copy (Ctrl+A) Fakturama draws the rows in small
+# bold italic on blue, and at 2000 OCR read "Northstar" as "star" (UI-MAP G28).
+# On every other screenshot and on the order image, 4000 gives the same results.
+MIN_WIDTH = 4000
 
 
 @dataclass

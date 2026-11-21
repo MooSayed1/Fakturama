@@ -335,6 +335,19 @@ def screenshot(window, path: Path) -> Path:
 #   column's header, on a fresh screenshot (G20, G22). Positions are computed
 #   at runtime, never written in code.
 
+def park_mouse(control) -> None:
+    """Move the mouse onto the title bar of the window that holds `control`.
+
+    The mouse stays where the last click left it, e.g. on the 'select a
+    product' icon, and that icon's tooltip then covers the last item line
+    (UI-MAP G29). On the title bar there is no tooltip. The spot comes from
+    the window's UIA rectangle right now."""
+    window = control.GetTopLevelControl() or control
+    rect = window.BoundingRectangle
+    auto.SetCursorPos(rect.left + rect.width() // 2, rect.top + 15)
+    time.sleep(0.4)  # let the tooltip disappear
+
+
 def table_in(root):
     """The custom-drawn table under `root`: the biggest pane that has nothing
     inside it except, at most, its scroll bars and the little in-place editor
@@ -354,6 +367,7 @@ def table_in(root):
 
 def table_has_rows(table, shot_path: Path) -> bool:
     """OCR the table's rectangle: is there any text below the header row?"""
+    park_mouse(table)
     table.CaptureToImage(str(shot_path))
     lines = read_lines(shot_path)
     if not lines:
@@ -379,6 +393,7 @@ def copy_table(table) -> list[list[str]]:
 
 def click_text(table, text: str, shot_path: Path, double: bool = False) -> None:
     """Click on a word in the rows of the table (below the header row)."""
+    park_mouse(table)
     table.CaptureToImage(str(shot_path))
     rect = table.BoundingRectangle
     lines = read_lines(shot_path)
@@ -401,6 +416,7 @@ def click_text(table, text: str, shot_path: Path, double: bool = False) -> None:
 def click_cell(table, column_header: str, shot_path: Path) -> None:
     """Click the cell of the LAST row under a column header.
     x: where OCR sees the header word. y: the last text row."""
+    park_mouse(table)
     table.CaptureToImage(str(shot_path))
     lines = read_lines(shot_path)
     if not lines:
@@ -429,18 +445,24 @@ def click_first_decimal_in_last_row(table, shot_path: Path) -> None:
 
     OCR doesn't read the short 'Qty.' header, but a new line always shows its
     quantity as the leftmost decimal number (the row number has no decimals).
+    The number must also sit left of the 'Item No.' header: anything to its
+    right is another column (Discount, ...), and is never clicked.
     """
+    park_mouse(table)
     number = None
     for _attempt in range(4):  # a just-added row may not be painted (or readable) yet
         table.CaptureToImage(str(shot_path))
         lines = read_lines(shot_path)
         header_bottom = lines[0].y + lines[0].height if lines else 0
         rows = [line for line in lines if line.y > header_bottom + 2]
-        if rows:
+        item_no = next((w for line in lines if line.y <= header_bottom for w in line.words
+                        if w.text.lower() == "item"), None)
+        if rows and item_no:
             last_y = max(line.y for line in rows)
             words = sorted((w for line in rows if abs(line.y - last_y) < 6 for w in line.words),
                            key=lambda w: w.x)
-            number = next((w for w in words if re.fullmatch(r"\d+[.,]\d+", w.text)), None)
+            number = next((w for w in words if re.fullmatch(r"\d+[.,]\d+", w.text)
+                           and w.x + w.width < item_no.x), None)
         if number is not None:
             break
         time.sleep(0.7)
