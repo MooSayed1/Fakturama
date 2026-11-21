@@ -1,0 +1,16 @@
+# Python build/cache files: regenerated automatically, never committed
+__pycache__/
+*.pyc
+
+# Virtual environment: uv recreates it from pyproject.toml + uv.lock
+.venv/
+
+# Secrets such as API keys: never commit these
+.env
+
+# Output of each automation run (screenshots, logs). The best ones get
+# copied into docs/screenshots/ for the submission.
+runs/
+
+# Debug log the uiautomation library writes when a search times out
+@AutomationLog.txt

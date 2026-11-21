@@ -1,0 +1,18 @@
+[project]
+name = "fakturama-image-to-cash"
+version = "0.1.0"
+description = "Turns one order image into a saved, verified Order and linked Invoice in Fakturama."
+readme = "README.md"
+requires-python = ">=3.13,<3.15"
+dependencies = [
+    "google-genai>=3.6.1",
+    "python-dotenv>=1.2.4",
+    "uiautomation>=2.0.29",
+    "winrt-runtime>=4.2.0",
+    "winrt-windows-foundation>=4!10.0.28000.2957",
+    "winrt-windows-foundation-collections>=4!10.0.28000.2957",
+    "winrt-windows-globalization>=4!10.0.28000.2957",
+    "winrt-windows-graphics-imaging>=4!10.0.28000.2957",
+    "winrt-windows-media-ocr>=4!10.0.28000.2957",
+    "winrt-windows-storage-streams>=4!10.0.28000.2957",
+]
