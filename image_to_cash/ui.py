@@ -266,18 +266,27 @@ def switch_to_tab(window, tab_name: str) -> None:
 
 
 def open_menu(window, menu: str, item: str) -> None:
-    """Choose a menu entry, e.g. Data > VATs."""
-    window.SetActive()
-    top = find(window, "MenuItemControl", menu, depth=4)
-    top.GetPattern(P.ExpandCollapsePattern).Expand()
+    """Choose a menu entry, e.g. Data > VATs.
+
+    The menu sometimes opens late or not at all. Clicking the menu title again
+    would close a menu that is just opening, so each failed try is undone with
+    Escape and the next one starts from a closed menu."""
     entry = auto.MenuItemControl(searchDepth=4, Name=item)
-    if not entry.Exists(2):  # the menu didn't open (window not in front?): click it
-        click(top)
-        if not entry.Exists(TIMEOUT):
-            raise ManualReview(f"menu entry {menu} > {item} not found")
-    entry.GetPattern(P.InvokePattern).Invoke()
-    time.sleep(1.5)
-    pause()
+    for attempt in range(3):
+        window.SetActive()
+        top = find(window, "MenuItemControl", menu, depth=4)
+        if attempt == 0:
+            top.GetPattern(P.ExpandCollapsePattern).Expand()
+        else:
+            click(top)  # a real click, in case Expand alone did nothing
+        if entry.Exists(3):
+            entry.GetPattern(P.InvokePattern).Invoke()
+            time.sleep(1.5)
+            pause()
+            return
+        keys("{Esc}")  # close whatever half-opened, then try again
+        time.sleep(0.5)
+    raise ManualReview(f"menu entry {menu} > {item} not found")
 
 
 def save_active_editor(window, editor_pane) -> None:
