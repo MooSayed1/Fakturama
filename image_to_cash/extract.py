@@ -24,12 +24,12 @@ log = logging.getLogger("image_to_cash")
 
 # Free-tier models, tried in this order until one answers. Each model has its
 # own capacity and quota, so when one is overloaded (503) or rate-limited (429),
-# another usually isn't. Measured on 2026-11-21: all four read samples/order.png
-# exactly like the human reading (samples/order.expected.json); the two "lite"
-# models answer in about 3 s, the other two in about 17 s. The newest models
-# (3.7, 3.8) answered 503 or hung every time, so they are not used.
+# another usually isn't. Measured on 2026-11-21: all three read samples/order.png
+# exactly like the human reading (samples/order.expected.json); the "lite" model
+# answers in about 3 s, the other two in about 17 s. The newest models (3.7, 3.8)
+# answered 503 or hung every time, so they are not used.
 # GEMINI_MODEL in .env picks one model instead.
-MODELS = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-3.6-flash"]
+MODELS = ["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.6-flash"]
 UNAVAILABLE = {404, 429, 500, 503, 504}  # model gone, rate-limited, overloaded: try the next one
 REQUEST_TIMEOUT_MS = 20_000  # no answer within 20 s counts as unavailable: try the next one
 

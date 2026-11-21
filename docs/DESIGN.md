@@ -60,7 +60,7 @@ The image's Customer ID is read but not used, because Fakturama proposes its own
   - needing an API key: a free Gemini key is enough, since there's one call per image and the result is cached
   - sending data to a third party: on the free tier Google may use what it receives, which is acceptable here because the sample data is synthetic
 - **Fallback when Gemini is unavailable** (overloaded, rate-limited, or no answer within 20 s):
-  - The next free model is tried. There are four, each with its own capacity, and each read the sample exactly like the human reading. The fast "lite" models (about 3 s) come first.
+  - The next free model is tried. There are three, each with its own capacity, and each read the sample exactly like the human reading. The fast "lite" model (about 3 s) comes first.
   - If none answers, the run stops for manual review within about a minute. A saved reading (`--from-json`) or a JSON written by hand from the image still works, and goes through the same checks.
 - **OCR is not a fallback reader.** On the sample, Windows OCR reads `CHR-ERG-01` as `CHR-ERG-OI` and misses the `10%` discount completely. It's used as a second, independent reader instead (section 4), and for reading the screen (section 5).
 
