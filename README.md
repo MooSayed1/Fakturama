@@ -29,12 +29,65 @@ Anything ambiguous stops the run for manual review instead of guessing.
 
 The full reasoning, every decision and what Fakturama shows to UI Automation are in [docs/DESIGN.md](docs/DESIGN.md).
 
+## Screenshots
+
+Taken by the program itself while running the brief's order (`samples/order.png`). Every run saves one screenshot per step in `runs/<time>/`.
+
+**1. A new Debtor, filled from the image.** Company, contact, alias `NORTHSTAR-BERLIN`, Net, 0 % discount and the payment method *Bank Transfer*. Below it: that payment method, which the run created first, because an editor that's already open wouldn't see it. *(From a run where the customer didn't exist yet.)*
+
+![A new Debtor filled from the image](images/1-new-debtor.png)
+
+**2. The Order before saving.** Date Jul 14, 2026, Cust.Ref. `WEB-2026-0714-A17`, Net, With VAT, the Debtor, and both lines: 2 × 250.00 − 10 % = 450.00 and 3 × 40.00 = 120.00. The totals, 570.00 / 108.30 / 678.30, match the image.
+
+![The Order before saving](images/2-order.png)
+
+**3. The Invoice, created from the Order.** The same lines and totals, paid by Bank Transfer on Jul 18, 2026, value 678.30.
+
+![The paid Invoice](images/3-invoice-paid.png)
+
+**4. The final check in Data > Documents.** `PO000008` is *open* and `INV000004` is *paid*, both 678.30 with the image's Cust.Ref.
+
+![Data > Documents: Order open, Invoice paid](images/4-documents-verified.png)
+
+The *Error* panel at the bottom left is Fakturama's own log from earlier development sessions (for example the crash when copying an empty table), not from this run.
+
+<details>
+<summary>The log of the run behind screenshots 2–4</summary>
+
+```
+2026-11-21 20:49:17,161 INFO Run folder: runs\2026-11-21_20-49-17
+2026-11-21 20:49:17,665 INFO Asking gemini-3.5-flash-lite to read the image...
+2026-11-21 20:49:21,144 INFO Image read by gemini-3.5-flash-lite in 3 s
+2026-11-21 20:49:21,146 INFO Order WEB-2026-0714-A17 (2 items) extracted by the LLM and saved in samples\order.extracted.json
+2026-11-21 20:49:21,146 INFO Validation passed: lines and totals add up
+2026-11-21 20:49:21,632 INFO OCR witness confirmed all 21 text values (lowest score 0.80)
+2026-11-21 20:49:28,134 INFO Pre-flight OK: no dialog, no clashing tab, no Order with Cust.Ref. WEB-2026-0714-A17 yet
+2026-11-21 20:49:29,140 INFO New Order opened, proposed No. PO000008 (kept)
+2026-11-21 20:49:43,364 INFO Debtor Northstar Office GmbH found and selected
+2026-11-21 20:49:43,808 INFO Order invoice address OK: ['Northstar Office GmbH', 'Marta Klein', 'Friedrichstrasse 88', 'DE-10117 Berlin', 'Germany']
+2026-11-21 20:49:49,430 INFO Product CHR-ERG-01 found and added
+2026-11-21 20:49:56,361 INFO Line CHR-ERG-01 OK: 2.00 x USD 250, -10% = USD 450
+2026-11-21 20:50:03,176 INFO Product MAT-DESK-02 found and added
+2026-11-21 20:50:07,645 INFO Line MAT-DESK-02 OK: 3.00 x USD 40, -0% = USD 120
+2026-11-21 20:50:09,008 INFO Order totals match the image: {'net': Decimal('570.00'), 'vat': Decimal('108.30'), 'gross': Decimal('678.30')}
+2026-11-21 20:50:12,091 INFO Order PO000008 saved
+2026-11-21 20:50:16,273 INFO Invoice INV000004 created from Order PO000008
+2026-11-21 20:50:16,484 INFO Invoice totals match the image: {'net': Decimal('570.00'), 'vat': Decimal('108.30'), 'gross': Decimal('678.30')}
+2026-11-21 20:50:28,394 INFO Invoice INV000004 saved
+2026-11-21 20:50:35,593 INFO Documents: PO000008 Tue Jul 14 00:00:00 EEST 2026, COMMAND_ORDER_PENDING, Cust.Ref. WEB-2026-0714-A17, total 678.3
+2026-11-21 20:50:35,593 INFO Documents: INV000004 Sat Nov 21 00:00:00 EET 2026, COMMAND_CHECKED, Cust.Ref. WEB-2026-0714-A17, total 678.3
+2026-11-21 20:50:35,594 INFO DONE: Order and paid Invoice saved and verified. Evidence in runs\2026-11-21_20-49-17
+```
+
+</details>
+
 ## Repository layout
 
 ```
 docs/                    DESIGN.md: the design (Part 1), the decision log, and what Fakturama shows to UIA
 samples/                 order.png (the input), order.expected.json (human reading),
                          order.extracted.json (Gemini's reading, reused with --from-json)
+images/                  the screenshots above
 image_to_cash/
 ├── __main__.py          the command line: read → check → drive Fakturama → verify
 ├── errors.py            ManualReview: the one way the program stops
