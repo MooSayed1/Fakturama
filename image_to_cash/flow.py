@@ -235,7 +235,7 @@ def select_debtor(r: Run, order: Order) -> bool:
         return False
     # Narrow the list to that one customer number, click its row, OK (UI-MAP G20).
     ui.set_search(search, exact[0][0])
-    ui.click_text(table, d.company.split()[0], r.scratch("address-click"))
+    ui.click_only_row(table, r.scratch("address-click"))
     ui.press(ui.find(dialog, "ButtonControl", "OK"))
     time.sleep(1)
     return True

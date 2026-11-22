@@ -62,7 +62,7 @@ The image's Customer ID is read but not used, because Fakturama proposes its own
 - **Fallback when Gemini is unavailable** (overloaded, rate-limited, or no answer within 20 s):
   - The next free model is tried. There are three, each with its own capacity, and each read the sample exactly like the human reading. The fast "lite" model (about 3 s) comes first.
   - If none answers, the run stops for manual review within about a minute. A saved reading (`--from-json`) or a JSON written by hand from the image still works, and goes through the same checks.
-- **OCR is not a fallback reader.** On the sample, Windows OCR reads `CHR-ERG-01` as `CHR-ERG-OI` and misses the `10%` discount completely. It's used as a second, independent reader instead (section 4), and for reading the screen (section 5).
+- **OCR is not a fallback reader.** It returns text and positions, not meaning: turning them into fields would need layout rules for each template. (The first OCR engine, Windows' built-in one, also read `CHR-ERG-01` as `CHR-ERG-OI` and missed the `10%` discount.) OCR is used as a second, independent reader instead (section 4), and for reading the screen (section 5).
 
 ## 4. Validating before touching Fakturama
 
@@ -77,7 +77,7 @@ Fakturama is only touched once all of these pass:
 4. **Business rules.**
    - The payment method has a known Fakturama code: Bank Transfer → *Credit transfer*, Credit Card → *Credit card*, SEPA Direct Debit → *SEPA direct debit*.
    - PAID requires a payment date.
-5. **OCR witness.** Math can't check names or streets. So every text value from the LLM must also appear, roughly (similarity ≥ 0.7), in what Windows OCR reads from the same image. That catches invented text, not one-letter typos.
+5. **OCR witness.** Math can't check names or streets. So every text value from the LLM must also appear, roughly (similarity ≥ 0.7), in what OCR (RapidOCR) reads from the same image. That catches invented text, not one-letter typos.
 6. **Derived values** are computed once here. Example: the product's gross list price is `round(unit_net × (1 + vat/100), 2)`, which gives 297.50 and 47.60 for the sample.
 
 If any check fails, the run stops before Fakturama is touched.
@@ -94,7 +94,7 @@ Inspecting the app showed that most controls are native and named, that Automati
    - Buttons use `Invoke`, checkboxes use `Toggle`, and drop-downs are opened and their entry clicked (G19).
    - Every value is re-read after it's set. Where read-back doesn't work (search boxes, G15), the program checks the effect instead.
 5. **Tables:**
-   - First, OCR the table's rectangle (Windows OCR) to answer one question: *does it have rows?*
+   - First, OCR the table's rectangle (RapidOCR) to answer one question: *does it have rows?*
    - If it does, copy them (focus the table, Ctrl+A, Ctrl+C) and parse the tab-separated text (G6).
    - Copy gives exact values. OCR comes first because copying an **empty** table crashes Fakturama (G7).
    - To **select a row or edit a cell**, the program clicks where OCR sees that row's text or that column's header on a fresh screenshot (G20, G22). The position is computed at runtime.

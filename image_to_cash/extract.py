@@ -4,7 +4,7 @@
   that must match the Order schema in schema.py.
 - The result is saved to a JSON file, so later runs skip the LLM entirely.
 - Witness check: every text value the LLM returned must also appear,
-  roughly, in what Windows OCR reads from the same image. That catches
+  roughly, in what OCR (RapidOCR) reads from the same image. That catches
   text the LLM invented. Numbers are checked by validate.py instead.
 """
 import logging
@@ -94,9 +94,9 @@ def extract_with_llm(image_path: Path) -> Order:
 
 # A value "appears" in the OCR text if some part of it is at least this similar.
 # Below that, OCR saw nothing like it: the LLM probably made it up.
-# Measured on samples/order.png: true values score 0.80-1.00, an invented
-# street 0.56. A one-letter misread still scores ~0.8, so this catches
-# invented text, not typos (the exact SKU match in Fakturama covers those).
+# Measured on samples/order.png with RapidOCR: true values score 1.00, made-up
+# values 0.56 or less. A one-letter misread still scores ~0.9, so this catches
+# invented text, not typos.
 WITNESS_THRESHOLD = 0.7
 
 
@@ -104,16 +104,19 @@ def similarity(value: str, ocr_text: str) -> float:
     """How well `value` appears somewhere in the OCR text: 1.0 = exactly, 0 = not at all.
 
     OCR lines often hold more than one value ("10117 Berlin"), so the value is
-    compared with every run of the same number of words, on every line.
+    compared with every run of words on every line. Spaces are ignored, and runs
+    of one word more or less are tried too, because OCR sometimes drops a space
+    or adds one ("+493055501420", "marta.klein @example.test").
     """
-    value_words = value.lower().split()
+    target = "".join(value.lower().split())
+    size = len(value.split())
     best = 0.0
     for line in ocr_text.lower().splitlines():
         words = line.split()
-        size = len(value_words)
-        for start in range(max(1, len(words) - size + 1)):
-            window = " ".join(words[start:start + size])
-            best = max(best, SequenceMatcher(None, " ".join(value_words), window).ratio())
+        for n in {max(1, size - 1), size, size + 1}:
+            for start in range(max(1, len(words) - n + 1)):
+                window = "".join(words[start:start + n])
+                best = max(best, SequenceMatcher(None, target, window).ratio())
     return best
 
 

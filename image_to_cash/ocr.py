@@ -1,33 +1,20 @@
-"""Windows' built-in OCR engine (Windows.Media.Ocr), called from Python.
+"""OCR with RapidOCR: PaddleOCR's models, run on the CPU through ONNX Runtime.
 
-Nothing to install besides the `winrt-*` Python packages: the engine ships
-with Windows 10/11. It is used for two things:
+The models ship inside the `rapidocr_onnxruntime` package, so it works offline
+and downloads nothing at run time. It is used for:
 - the "witness" check on the LLM's extraction (extract.py)
-- the "does this table have rows?" check in Fakturama (ui.py)
+- Fakturama's custom-drawn tables: "any rows?" and "where to click" (ui.py)
+
+It replaced Windows' built-in OCR, which couldn't read Fakturama's faint table
+headers or a noisy fax (docs/DECISIONS.md #19).
 """
-import asyncio
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from functools import cache
 from pathlib import Path
+from statistics import median
 
-from winrt.windows.globalization import Language
-from winrt.windows.graphics.imaging import (
-    BitmapAlphaMode,
-    BitmapDecoder,
-    BitmapInterpolationMode,
-    BitmapPixelFormat,
-    BitmapTransform,
-    ColorManagementMode,
-    ExifOrientationMode,
-)
-from winrt.windows.media.ocr import OcrEngine
-from winrt.windows.storage.streams import DataWriter, InMemoryRandomAccessStream
-
-# Windows OCR misses small text. Images narrower than this are scaled up first.
-# 4000, not 2000: after a table copy (Ctrl+A) Fakturama draws the rows in small
-# bold italic on blue, and at 2000 OCR read "Northstar" as "star" (UI-MAP G28).
-# On every other screenshot and on the order image, 4000 gives the same results.
-MIN_WIDTH = 4000
+from rapidocr_onnxruntime import RapidOCR
+from rapidocr_onnxruntime.utils.process_img import ResizeImgError
 
 
 @dataclass
@@ -48,60 +35,52 @@ class OcrLine:
     words: list[OcrWord]
 
 
-def read_lines(image_path: Path) -> list[OcrLine]:
-    """Return every text line Windows OCR finds in a PNG/JPG, top to bottom.
+@cache
+def _engine() -> RapidOCR:
+    """Load the models once (about a second), then reuse them."""
+    return RapidOCR()
 
-    Runs in a separate thread: the main thread belongs to UI Automation
-    (a single-threaded COM apartment), and WinRT's async calls deadlock there.
-    """
-    image_bytes = Path(image_path).read_bytes()
-    with ThreadPoolExecutor(max_workers=1) as worker:
-        return worker.submit(asyncio.run, _read_lines(image_bytes)).result(timeout=30)
+
+def read_lines(image_path: Path) -> list[OcrLine]:
+    """Every piece of text RapidOCR finds in a PNG/JPG, top to bottom, with a box per word."""
+    try:
+        result, _elapsed = _engine()(str(image_path), return_word_box=True)
+    except ResizeImgError:  # a strip a few pixels high: too thin to hold any text
+        return []
+    lines = []
+    for box, text, _score, char_boxes, chars, _char_scores in result or []:
+        top = min(point[1] for point in box)
+        height = max(point[1] for point in box) - top
+        left = min(point[0] for point in box)
+        if char_boxes:
+            words = _words(chars, char_boxes, top, height)
+        else:  # no character positions: the whole text is one word
+            words = [OcrWord(text, left, top, max(point[0] for point in box) - left, height)]
+        lines.append(OcrLine(text, left, top, height, words))
+    return sorted(lines, key=lambda line: (line.y, line.x))
 
 
 def read_text(image_path: Path) -> str:
-    """All recognized text as one string, one line per OCR line."""
-    return "\n".join(line.text for line in read_lines(image_path))
+    """All recognized text as one string, one line per text box, words split by spaces."""
+    return "\n".join(" ".join(word.text for word in line.words) for line in read_lines(image_path))
 
 
-async def _read_lines(image_bytes: bytes) -> list[OcrLine]:
-    # 1. Put the file's bytes into an in-memory stream that WinRT can read.
-    stream = InMemoryRandomAccessStream()
-    writer = DataWriter(stream)
-    writer.write_bytes(image_bytes)
-    await writer.store_async()
-    writer.detach_stream()
-    stream.seek(0)
-
-    # 2. Decode the PNG/JPG into a bitmap, scaling small images up so that
-    #    small print becomes readable for the engine.
-    decoder = await BitmapDecoder.create_async(stream)
-    scale = max(1, MIN_WIDTH / decoder.pixel_width)
-    transform = BitmapTransform()
-    transform.scaled_width = round(decoder.pixel_width * scale)
-    transform.scaled_height = round(decoder.pixel_height * scale)
-    transform.interpolation_mode = BitmapInterpolationMode.FANT
-    bitmap = await decoder.get_software_bitmap_transformed_async(
-        BitmapPixelFormat.BGRA8, BitmapAlphaMode.PREMULTIPLIED, transform,
-        ExifOrientationMode.IGNORE_EXIF_ORIENTATION, ColorManagementMode.DO_NOT_COLOR_MANAGE)
-
-    # 3. Recognize English text.
-    engine = OcrEngine.try_create_from_language(Language("en-US"))
-    if engine is None:
-        raise RuntimeError("Windows OCR for en-US is not installed")
-    result = await engine.recognize_async(bitmap)
-
-    lines = []
-    for line in result.lines:
-        boxes = [word.bounding_rect for word in line.words]
-        top = min(b.y for b in boxes)
-        lines.append(OcrLine(  # positions converted back to the original image's pixels
-            text=line.text,
-            x=min(b.x for b in boxes) / scale,
-            y=top / scale,
-            height=(max(b.y + b.height for b in boxes) - top) / scale,
-            words=[OcrWord(w.text, w.bounding_rect.x / scale, w.bounding_rect.y / scale,
-                           w.bounding_rect.width / scale, w.bounding_rect.height / scale)
-                   for w in line.words],
-        ))
-    return sorted(lines, key=lambda line: (line.y, line.x))
+def _words(chars: list[str], char_boxes: list, top: float, height: float) -> list[OcrWord]:
+    """Group the characters into words. A word ends at a space, or at a gap wider
+    than 1.6 characters: RapidOCR sometimes reads two neighbouring table cells as
+    one text ("2.00LMP-LED-05"), and the gap between the cells splits them again.
+    Measured: gaps inside words reach 1.3 characters, the gap between cells 1.9."""
+    spans = [(min(p[0] for p in box), max(p[0] for p in box)) for box in char_boxes]
+    char_width = median(right - left for left, right in spans)
+    words, current, previous_right = [], [], None
+    for char, (left, right) in zip(chars, spans):
+        if current and (char == " " or left - previous_right > 1.6 * char_width):
+            words.append(current)
+            current = []
+        if char != " ":
+            current.append((char, left, right))
+        previous_right = right
+    if current:
+        words.append(current)
+    return [OcrWord("".join(c for c, _, _ in word), word[0][1], top, word[-1][2] - word[0][1], height)
+            for word in words]

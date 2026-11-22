@@ -400,6 +400,20 @@ def copy_table(table) -> list[list[str]]:
     return [line.split("\t") for line in text.splitlines() if line.strip()]
 
 
+def match(wanted: str, seen: str) -> float:
+    """How well `wanted` appears in the OCR word `seen`: 1.0 = exactly.
+
+    OCR may misread a letter or two, and RapidOCR sometimes reads a whole row
+    as one word ("Northstaroffic...10117"), so `wanted` is also compared with
+    every piece of a longer word. A piece scores a little less than a word of
+    exactly that length, so an exact word wins a tie."""
+    wanted, seen = wanted.lower(), seen.lower()
+    if len(seen) <= len(wanted):
+        return SequenceMatcher(None, wanted, seen).ratio()
+    return 0.99 * max(SequenceMatcher(None, wanted, seen[i:i + len(wanted)]).ratio()
+                      for i in range(len(seen) - len(wanted) + 1))
+
+
 def click_text(table, text: str, shot_path: Path, double: bool = False) -> None:
     """Click on a word in the rows of the table (below the header row)."""
     park_mouse(table)
@@ -407,9 +421,7 @@ def click_text(table, text: str, shot_path: Path, double: bool = False) -> None:
     rect = table.BoundingRectangle
     lines = read_lines(shot_path)
     header_bottom = lines[0].y + lines[0].height if lines else 0
-    wanted = text.lower()
-    # OCR may misread a letter or two, so take the most similar word on screen.
-    score, word = max(((SequenceMatcher(None, wanted, w.text.lower()).ratio(), w)
+    score, word = max(((match(text, w.text), w)
                        for line in lines if line.y > header_bottom + 2 for w in line.words),
                       key=lambda pair: pair[0], default=(0, None))
     if word is None or score < 0.75:
@@ -419,6 +431,27 @@ def click_text(table, text: str, shot_path: Path, double: bool = False) -> None:
     auto.Click(x, y, waitTime=0.05 if double else 0.5)
     if double:
         auto.Click(x, y, waitTime=0.8)
+    pause()
+
+
+def click_only_row(table, shot_path: Path) -> None:
+    """Click the table's one and only row. For a search narrowed to a unique
+    value (a customer number), so the row's text doesn't have to be read:
+    selected rows are drawn in a style OCR reads badly (UI-MAP G28).
+    Stops if OCR sees no row, or more than one."""
+    park_mouse(table)
+    table.CaptureToImage(str(shot_path))
+    lines = read_lines(shot_path)
+    header_bottom = lines[0].y + lines[0].height if lines else 0
+    rows = [line for line in lines if line.y > header_bottom + 2]
+    if not rows:
+        raise ManualReview("could not see the row to click it")
+    if max(line.y for line in rows) - min(line.y for line in rows) > max(line.height for line in rows):
+        raise ManualReview("expected exactly one row in the table, but OCR sees several")
+    widest = max(rows, key=lambda line: sum(w.width for w in line.words))
+    rect = table.BoundingRectangle
+    auto.Click(int(rect.left + widest.x + sum(w.width for w in widest.words) / 2),
+               int(rect.top + widest.y + widest.height / 2), waitTime=0.5)
     pause()
 
 
@@ -476,8 +509,8 @@ def click_first_decimal_in_last_row(table, shot_path: Path) -> None:
         lines = read_lines(shot_path)
         header_bottom = lines[0].y + lines[0].height if lines else 0
         rows = [line for line in lines if line.y > header_bottom + 2]
-        item_no = next((w for line in lines if line.y <= header_bottom for w in line.words
-                        if w.text.lower() == "item"), None)
+        item_no = next((line for line in lines if line.y <= header_bottom
+                        and line.text.lower().startswith("item")), None)  # the "Item No." header
         if rows and item_no:
             last_y = max(line.y for line in rows)
             words = sorted((w for line in rows if abs(line.y - last_y) < 6 for w in line.words),
