@@ -5,7 +5,8 @@ Rules (docs/DESIGN.md section 5):
   Never by coordinates, and never by AutomationId (random in Fakturama).
 - Values are typed with real keystrokes and read back; buttons are Invoked,
   checkboxes Toggled, drop-downs opened and their entry clicked.
-- The only clicks are on a control's own rectangle, asked from UIA right now.
+- Clicks land on a control's UIA rectangle or, inside custom-drawn tables,
+  where OCR sees the text. Both positions are computed at that moment.
 - Anything missing or unexpected raises ManualReview instead of guessing.
 """
 import ctypes
@@ -138,7 +139,7 @@ def set_text(edit, value: str) -> None:
 
     Why keystrokes: Fakturama ignores some values set through UIA's
     ValuePattern (the Company field showed the text but saved nothing,
-    UI-MAP G17). Typing is what a user does, so Fakturama always stores it.
+    DESIGN.md G17). Typing is what a user does, so Fakturama always stores it.
     """
     edit.SetFocus()
     time.sleep(0.1)
@@ -155,7 +156,7 @@ def set_text(edit, value: str) -> None:
 
 def set_search(edit, value: str) -> None:
     """Fill a search box through ValuePattern (fast). Its read-back is always
-    empty in Fakturama (UI-MAP G15), so the caller checks the filtered rows."""
+    empty in Fakturama (DESIGN.md G15), so the caller checks the filtered rows."""
     edit.GetPattern(P.ValuePattern).SetValue(value)
     time.sleep(1.5)
     pause()
@@ -192,7 +193,7 @@ def parse_ui_date(text: str) -> date | None:
 def type_date(edit, value: date, what: str) -> None:
     """Fakturama's date fields are edited one part at a time: Home jumps to
     the month; after two digits the field moves on to the day, then the year.
-    So we type MM, DD, YYYY with no arrow keys (UI-MAP G18). Then we check."""
+    So we type MM, DD, YYYY with no arrow keys (DESIGN.md G18). Then we check."""
     edit.SetFocus()
     time.sleep(0.2)
     keys("{Home}")
@@ -228,7 +229,7 @@ def options(combo) -> list[str]:
 
 def choose(combo, option: str) -> None:
     """Pick an entry of a drop-down the way a user does: open it, click the entry
-    (UI-MAP G19). Then check what the drop-down shows."""
+    (DESIGN.md G19). Then check what the drop-down shows."""
     combo.GetPattern(P.ExpandCollapsePattern).Expand()
     time.sleep(0.5)
     entry = None
@@ -310,7 +311,7 @@ def save_active_editor(window, editor_pane) -> None:
 
 def close_active_tab(window) -> None:
     """Close the editor in front, which must be saved already. If Fakturama
-    asks to save, something went wrong (we never discard, UI-MAP G25)."""
+    asks to save, something went wrong (we never discard, DESIGN.md G25)."""
     keys("{Ctrl}w")
     time.sleep(1)
     if window.WindowControl(searchDepth=1, Name="Save Parts").Exists(0.5):
@@ -345,7 +346,7 @@ def screenshot(window, path: Path) -> Path:
 # Fakturama's custom-drawn tables (NatTable): UIA sees an empty box, no rows.
 #
 # - Read rows: Fakturama's own copy (focus, Ctrl+A, Ctrl+C) gives exact,
-#   tab-separated values (UI-MAP G6).
+#   tab-separated values (DESIGN.md G6).
 # - But copying an EMPTY table crashes Fakturama (G7), so first OCR the table
 #   to ask "is there any row?".
 # - Select a row or edit a cell: click where OCR sees that row's text or that
@@ -357,7 +358,7 @@ def park_mouse(control) -> None:
 
     The mouse stays where the last click left it, e.g. on the 'select a
     product' icon, and that icon's tooltip then covers the last item line
-    (UI-MAP G29). On the title bar there is no tooltip. The spot comes from
+    (DESIGN.md G29). On the title bar there is no tooltip. The spot comes from
     the window's UIA rectangle right now."""
     window = control.GetTopLevelControl() or control
     rect = window.BoundingRectangle
@@ -445,7 +446,7 @@ def click_text(table, text: str, shot_path: Path, double: bool = False) -> None:
 def click_only_row(table, shot_path: Path) -> None:
     """Click the table's one and only row. For a search narrowed to a unique
     value (a customer number), so the row's text doesn't have to be read:
-    selected rows are drawn in a style OCR reads badly (UI-MAP G28).
+    selected rows are drawn in a style OCR reads badly (DESIGN.md G28).
     Stops if OCR sees no row, or more than one."""
     park_mouse(table)
     table.CaptureToImage(str(shot_path))
@@ -466,7 +467,7 @@ def click_only_row(table, shot_path: Path) -> None:
 def column_position(table, column_header: str, shot_path: Path) -> tuple[float, float]:
     """Where a column is: (x of the middle of its header, bottom of the header
     row), as OCR sees them now. Call it BEFORE editing a row: while a cell is
-    being edited, the light-gray header can't be read reliably (UI-MAP G30)."""
+    being edited, the light-gray header can't be read reliably (DESIGN.md G30)."""
     park_mouse(table)
     for _attempt in range(3):
         table.CaptureToImage(str(shot_path))

@@ -84,7 +84,7 @@ def document_rows(r: Run, search: str, category: str) -> list[list[str]]:
 
     The category is chosen in the tree left of the list every time: Fakturama
     remembers the last one chosen, even after the tab is closed, and a
-    leftover filter (e.g. Invoices > unpaid) would hide documents (UI-MAP G31).
+    leftover filter (e.g. Invoices > unpaid) would hide documents (DESIGN.md G31).
     Columns: icon, number, date, name, Cust.Ref., state, total, printed."""
     ui.open_menu(r.window, "Data", "Documents")
     view = ui.find(r.window, "TabControl", "Documents", depth=10)
@@ -255,7 +255,7 @@ def select_debtor(r: Run, order: Order) -> bool:
     if not exact:
         ui.press(ui.find(dialog, "ButtonControl", "Cancel"))
         return False
-    # Narrow the list to that one customer number, click its row, OK (UI-MAP G20).
+    # Narrow the list to that one customer number, click its row, OK (DESIGN.md G20).
     ui.set_search(search, exact[0][0])
     ui.click_only_row(table, r.scratch("address-click"))
     ui.press(ui.find(dialog, "ButtonControl", "OK"))
@@ -275,7 +275,7 @@ def address_lines(r: Run, role: str) -> list[str]:
 
 def missing_parts(lines: list[str], address: Address) -> list[str]:
     """What is missing from an address block. Fakturama prints the ZIP line
-    with a country prefix, e.g. 'DE-10117 Berlin' (UI-MAP G27)."""
+    with a country prefix, e.g. 'DE-10117 Berlin' (DESIGN.md G27)."""
     missing = []
     if address.street not in lines:
         missing.append(address.street)
@@ -369,7 +369,7 @@ def ensure_payment_method(r: Run, method: str) -> None:
     """Data > terms of payment: reuse the method if it exists, else create it once.
 
     Runs at the start of every order, before any editor is open: an open
-    editor doesn't refresh its payment list (UI-MAP G23), and both a new
+    editor doesn't refresh its payment list (DESIGN.md G23), and both a new
     Debtor and the Invoice need the method, even for an existing customer."""
     ui.open_menu(r.window, "Data", "terms of payment")
     view = ui.find(r.window, "TabControl", "terms of payment", depth=10)
@@ -430,7 +430,7 @@ def select_product(r: Run, item: Item) -> bool:
     """Search the SKU in the Order's product selector. True if its line was added.
 
     Fakturama adds the product by itself and closes the dialog when the search
-    leaves exactly one match (UI-MAP G21), so the added line is always checked.
+    leaves exactly one match (DESIGN.md G21), so the added line is always checked.
     """
     ed = ui.editor(r.window, ORDER_TAB)
     lines_before = len(item_rows(r))
@@ -461,7 +461,7 @@ def select_product(r: Run, item: Item) -> bool:
 def set_line(r: Run, item: Item) -> None:
     """Type qty and discount into the new (last) line, then check its numbers."""
     table = ui.table_in(ui.editor(r.window, ORDER_TAB))
-    # Find the Discount column now, before any cell is edited (UI-MAP G30).
+    # Find the Discount column now, before any cell is edited (DESIGN.md G30).
     discount_column = (ui.column_position(table, "Discount", r.scratch("discount-column"))
                        if item.discount_pct != 0 else None)
     if item.qty != 1:

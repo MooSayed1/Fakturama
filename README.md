@@ -27,12 +27,12 @@ flowchart LR
 
 Anything ambiguous stops the run for manual review instead of guessing.
 
-The full reasoning is in [docs/DESIGN.md](docs/DESIGN.md), what Fakturama exposes to UIA is in [docs/UI-MAP.md](docs/UI-MAP.md), and every decision is in [docs/DECISIONS.md](docs/DECISIONS.md).
+The full reasoning, every decision and what Fakturama shows to UI Automation are in [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Repository layout
 
 ```
-docs/                    DESIGN.md (Part 1), DECISIONS.md, UI-MAP.md (what UIA sees in Fakturama)
+docs/                    DESIGN.md: the design (Part 1), the decision log, and what Fakturama shows to UIA
 samples/                 order.png (the input), order.expected.json (human reading),
                          order.extracted.json (Gemini's reading, reused with --from-json)
 image_to_cash/
