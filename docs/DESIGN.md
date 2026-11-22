@@ -129,7 +129,7 @@ flowchart TD
 
 | Step | What the program does | How it confirms | Stops for manual review when |
 |---|---|---|---|
-| 0 Pre-flight | Checks the preconditions. Searches Data > Documents, category *Orders*, for the Cust.Ref. (Fakturama remembers the last category chosen there, so it's always set.) | | An Order with this Cust.Ref. already exists. This prevents a duplicate on a re-run. |
+| 0 Pre-flight | Checks the preconditions. Searches Data > Documents, category *Orders*, for the Cust.Ref. (Fakturama remembers the last category chosen there, so it's always set. The tree is built from the existing documents: with no *Orders* entry, there is no Order at all.) | | An Order with this Cust.Ref. already exists. This prevents a duplicate on a re-run. |
 | 0b Payment method | Checked for **every** order, right after pre-flight and before any editor is open. An open editor doesn't refresh its payment list, and both a new Debtor and the Invoice need the method, even for an existing customer. Data > terms of payment: reused if it exists; otherwise new, with Name = Description = method, the mapped code, all days and discounts 0, not standard. Saves once. | The method appears in the Debtor's and the Invoice's payment lists. | The method has no known code, or exists twice. |
 | 1 New Order | Create: New Order. Keeps the proposed No., sets Date and Cust.Ref., Net, With VAT. | Reads each field back. | A value doesn't stick. |
 | 2 Debtor | Opens the address selector and searches the company. | Exactly one row where Company, First Name, Name, ZIP and City all match. Selects it, OK, then compares the Order's addresses with the image. | Several rows match, or a row has the company but differs elsewhere. |

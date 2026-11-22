@@ -88,7 +88,10 @@ def document_rows(r: Run, search: str, category: str) -> list[list[str]]:
     Columns: icon, number, date, name, Cust.Ref., state, total, printed."""
     ui.open_menu(r.window, "Data", "Documents")
     view = ui.find(r.window, "TabControl", "Documents", depth=10)
-    ui.select_tree_item(view, category)
+    if not ui.select_tree_item(view, category):
+        # Fakturama builds this tree from the documents it has: no "Orders"
+        # entry means there is no Order at all (e.g. in a fresh workspace).
+        return []
     if documents_category(view) != category:
         raise ManualReview(f"Data > Documents doesn't show the category {category!r} "
                            f"(the list shows {documents_category(view)!r})")

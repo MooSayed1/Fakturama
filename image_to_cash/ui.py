@@ -251,12 +251,17 @@ def choose(combo, option: str) -> None:
 
 # ---------- tabs, menus, saving ----------
 
-def select_tree_item(root, name: str) -> None:
-    """Select an item of a native tree, e.g. the category "Orders" in Data > Documents."""
-    item = find(root, "TreeItemControl", name, depth=14)
+def select_tree_item(root, name: str) -> bool:
+    """Select an item of a native tree, e.g. the category "Orders" in Data >
+    Documents. Returns False if the tree has no such item."""
+    item = root.Control(searchDepth=14, Name=name,
+                        Compare=lambda c, _depth: c.ControlTypeName == "TreeItemControl")
+    if not item.Exists(2):
+        return False
     item.GetPattern(P.SelectionItemPattern).Select()
     time.sleep(1)
     pause()
+    return True
 
 
 def tab_names(window) -> list[str]:
