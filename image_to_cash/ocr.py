@@ -6,7 +6,7 @@ and downloads nothing at run time. It is used for:
 - Fakturama's custom-drawn tables: "any rows?" and "where to click" (ui.py)
 
 It replaced Windows' built-in OCR, which couldn't read Fakturama's faint table
-headers or a noisy fax (docs/DESIGN.md, decision 19).
+headers or a noisy fax.
 """
 from dataclasses import dataclass
 from functools import cache

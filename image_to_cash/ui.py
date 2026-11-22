@@ -138,8 +138,8 @@ def set_text(edit, value: str) -> None:
     """Type a value with real keystrokes, then check that the field shows it.
 
     Why keystrokes: Fakturama ignores some values set through UIA's
-    ValuePattern (the Company field showed the text but saved nothing,
-    DESIGN.md G17). Typing is what a user does, so Fakturama always stores it.
+    ValuePattern (the Company field showed the text but saved nothing).
+    Typing is what a user does, so Fakturama always stores it.
     """
     edit.SetFocus()
     time.sleep(0.1)
@@ -156,7 +156,7 @@ def set_text(edit, value: str) -> None:
 
 def set_search(edit, value: str) -> None:
     """Fill a search box through ValuePattern (fast). Its read-back is always
-    empty in Fakturama (DESIGN.md G15), so the caller checks the filtered rows."""
+    empty in Fakturama, so the caller checks the filtered rows."""
     edit.GetPattern(P.ValuePattern).SetValue(value)
     time.sleep(1.5)
     pause()
@@ -193,7 +193,7 @@ def parse_ui_date(text: str) -> date | None:
 def type_date(edit, value: date, what: str) -> None:
     """Fakturama's date fields are edited one part at a time: Home jumps to
     the month; after two digits the field moves on to the day, then the year.
-    So we type MM, DD, YYYY with no arrow keys (DESIGN.md G18). Then we check."""
+    So we type MM, DD, YYYY with no arrow keys. Then we check."""
     edit.SetFocus()
     time.sleep(0.2)
     keys("{Home}")
@@ -228,8 +228,8 @@ def options(combo) -> list[str]:
 
 
 def choose(combo, option: str) -> None:
-    """Pick an entry of a drop-down the way a user does: open it, click the entry
-    (DESIGN.md G19). Then check what the drop-down shows."""
+    """Pick an entry of a drop-down the way a user does: open it, click the entry.
+    Then check what the drop-down shows."""
     combo.GetPattern(P.ExpandCollapsePattern).Expand()
     time.sleep(0.5)
     entry = None
@@ -311,7 +311,7 @@ def save_active_editor(window, editor_pane) -> None:
 
 def close_active_tab(window) -> None:
     """Close the editor in front, which must be saved already. If Fakturama
-    asks to save, something went wrong (we never discard, DESIGN.md G25)."""
+    asks to save, something went wrong (we never discard)."""
     keys("{Ctrl}w")
     time.sleep(1)
     if window.WindowControl(searchDepth=1, Name="Save Parts").Exists(0.5):
@@ -346,19 +346,19 @@ def screenshot(window, path: Path) -> Path:
 # Fakturama's custom-drawn tables (NatTable): UIA sees an empty box, no rows.
 #
 # - Read rows: Fakturama's own copy (focus, Ctrl+A, Ctrl+C) gives exact,
-#   tab-separated values (DESIGN.md G6).
-# - But copying an EMPTY table crashes Fakturama (G7), so first OCR the table
+#   tab-separated values.
+# - But copying an EMPTY table crashes Fakturama, so first OCR the table
 #   to ask "is there any row?".
 # - Select a row or edit a cell: click where OCR sees that row's text or that
-#   column's header, on a fresh screenshot (G20, G22). Positions are computed
+#   column's header, on a fresh screenshot. Positions are computed
 #   at runtime, never written in code.
 
 def park_mouse(control) -> None:
     """Move the mouse onto the title bar of the window that holds `control`.
 
     The mouse stays where the last click left it, e.g. on the 'select a
-    product' icon, and that icon's tooltip then covers the last item line
-    (DESIGN.md G29). On the title bar there is no tooltip. The spot comes from
+    product' icon, and that icon's tooltip then covers the last item line.
+    On the title bar there is no tooltip. The spot comes from
     the window's UIA rectangle right now."""
     window = control.GetTopLevelControl() or control
     rect = window.BoundingRectangle
@@ -446,7 +446,7 @@ def click_text(table, text: str, shot_path: Path, double: bool = False) -> None:
 def click_only_row(table, shot_path: Path) -> None:
     """Click the table's one and only row. For a search narrowed to a unique
     value (a customer number), so the row's text doesn't have to be read:
-    selected rows are drawn in a style OCR reads badly (DESIGN.md G28).
+    selected rows are drawn in a style OCR reads badly.
     Stops if OCR sees no row, or more than one."""
     park_mouse(table)
     table.CaptureToImage(str(shot_path))
@@ -467,7 +467,7 @@ def click_only_row(table, shot_path: Path) -> None:
 def column_position(table, column_header: str, shot_path: Path) -> tuple[float, float]:
     """Where a column is: (x of the middle of its header, bottom of the header
     row), as OCR sees them now. Call it BEFORE editing a row: while a cell is
-    being edited, the light-gray header can't be read reliably (DESIGN.md G30)."""
+    being edited, the light-gray header can't be read reliably."""
     park_mouse(table)
     for _attempt in range(3):
         table.CaptureToImage(str(shot_path))

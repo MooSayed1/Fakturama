@@ -27,7 +27,7 @@ flowchart LR
 
 Anything ambiguous stops the run for manual review instead of guessing.
 
-The full reasoning, every decision and what Fakturama shows to UI Automation are in [docs/DESIGN.md](docs/DESIGN.md).
+The design (Part 1 of the assessment) is in [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Screenshots
 
@@ -84,7 +84,7 @@ The *Error* panel at the bottom left is Fakturama's own log from earlier develop
 ## Repository layout
 
 ```
-docs/                    DESIGN.md: the design (Part 1), the decision log, and what Fakturama shows to UIA
+docs/                    DESIGN.md: the design (Part 1 of the assessment)
 samples/                 order.png (the input), order.expected.json (human reading),
                          order.extracted.json (Gemini's reading, reused with --from-json)
 images/                  the screenshots above
