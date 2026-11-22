@@ -129,7 +129,7 @@ flowchart TD
 
 | Step | What the program does | How it confirms | Stops for manual review when |
 |---|---|---|---|
-| 0 Pre-flight | Checks the preconditions. Searches Data > Documents for the Cust.Ref. | | An Order with this Cust.Ref. already exists. This prevents a duplicate on a re-run. |
+| 0 Pre-flight | Checks the preconditions. Searches Data > Documents, category *Orders*, for the Cust.Ref. (Fakturama remembers the last category chosen there, so it's always set, G31.) | | An Order with this Cust.Ref. already exists. This prevents a duplicate on a re-run. |
 | 0b Payment method | Checked for **every** order, right after pre-flight and before any editor is open. An open editor doesn't refresh its payment list (G23), and both a new Debtor and the Invoice need the method, even for an existing customer. Data > terms of payment: reused if it exists; otherwise new, with Name = Description = method, the mapped code, all days and discounts 0, not standard. Saves once. | The method appears in the Debtor's and the Invoice's payment lists. | The method has no known code, or exists twice. |
 | 1 New Order | Create: New Order. Keeps the proposed No., sets Date and Cust.Ref., Net, With VAT. | Reads each field back. | A value doesn't stick. |
 | 2 Debtor | Opens the address selector and searches the company. | Exactly one row where Company, First Name, Name, ZIP and City all match. Selects it, OK, then compares the Order's addresses with the image. | Several rows match, or a row has the company but differs elsewhere. |
@@ -140,7 +140,7 @@ flowchart TD
 | 3c Line | Sets qty and line discount. | U.Price = unit net, VAT % is correct, line price = `qty × net × (1 − disc)`. | Any mismatch. |
 | 4 Save Order | Overall discount 0 %, shipping free / 0.00. Saves once. | Totals equal the image. The Documents row shows the number, date, Cust.Ref., *open* and the total. | The totals differ. |
 | 5 Invoice | On the saved Order: *Create a follow-up document → Invoice*, which keeps the link. Checks the copied values. Sets the payment method. If PAID: *paid*, the payment date and the full total. Saves once. | Reads the values back. | The payment method is unavailable. |
-| 6 Verify | Copies the Documents rows (G6). | The Invoice is *paid* with the gross total. The Order is still *open* with the same Cust.Ref. and total. | Anything differs. |
+| 6 Verify | Copies the Documents rows (G6), once under *Orders* and once under *Invoices*. | The Invoice is *paid* with the gross total. The Order is still *open* with the same Cust.Ref. and total. | Anything differs. |
 
 ## 7. Verification and evidence
 

@@ -78,11 +78,20 @@ def preflight(r: Run, order: Order) -> None:
 
 # ---------- steps 0 + 6: Data > Documents ----------
 
-def document_rows(r: Run, search: str) -> list[list[str]]:
-    """Rows of Data > Documents filtered by `search`, copied with exact values.
+def document_rows(r: Run, search: str, category: str) -> list[list[str]]:
+    """Rows of Data > Documents in one category ("Orders" or "Invoices") that
+    match `search`, copied with exact values.
+
+    The category is chosen in the tree left of the list every time: Fakturama
+    remembers the last one chosen, even after the tab is closed, and a
+    leftover filter (e.g. Invoices > unpaid) would hide documents (UI-MAP G31).
     Columns: icon, number, date, name, Cust.Ref., state, total, printed."""
     ui.open_menu(r.window, "Data", "Documents")
     view = ui.find(r.window, "TabControl", "Documents", depth=10)
+    ui.select_tree_item(view, category)
+    if documents_category(view) != category:
+        raise ManualReview(f"Data > Documents doesn't show the category {category!r} "
+                           f"(the list shows {documents_category(view)!r})")
     table = ui.table_in(view)
     ui.set_search(ui.after_label(view, "Search:"), search)
     if not ui.table_has_rows(table, r.scratch("documents-search")):
@@ -90,9 +99,21 @@ def document_rows(r: Run, search: str) -> list[list[str]]:
     return ui.copy_table(table)
 
 
+def documents_category(view) -> str:
+    """The category the Documents list is filtered to, as the label just before
+    "Search:" shows it (e.g. "Orders", "Invoices/unpaid"), or "" for none."""
+    label = ""
+    for control, _depth in ui.auto.WalkControl(view, maxDepth=12):
+        if control.ControlTypeName == "TextControl":
+            if control.Name == "Search:":
+                return label.strip()
+            label = control.Name
+    return ""
+
+
 def existing_order(r: Run, external_reference: str) -> str | None:
     """The number of an Order that already has this Cust.Ref., if any."""
-    for row in document_rows(r, external_reference):
+    for row in document_rows(r, external_reference, "Orders"):
         if row[0] == "ICON_ORDER" and row[4] == external_reference:
             return row[1]
     return None
@@ -101,7 +122,8 @@ def existing_order(r: Run, external_reference: str) -> str | None:
 def verify_documents(r: Run, order: Order, order_no: str, invoice_no: str) -> None:
     """Step 6: the Order must be 'open', the Invoice 'paid' (if PAID), both
     with the image's Cust.Ref. and gross total."""
-    rows = {row[1]: row for row in document_rows(r, order.external_reference)}
+    rows = {row[1]: row for category in ("Orders", "Invoices")
+            for row in document_rows(r, order.external_reference, category)}
     r.shot("documents")
     expected = {order_no: ("ICON_ORDER", "COMMAND_ORDER_PENDING"),
                 invoice_no: ("ICON_INVOICE", "COMMAND_CHECKED" if order.payment.status == "PAID"

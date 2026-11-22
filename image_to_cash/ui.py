@@ -250,6 +250,14 @@ def choose(combo, option: str) -> None:
 
 # ---------- tabs, menus, saving ----------
 
+def select_tree_item(root, name: str) -> None:
+    """Select an item of a native tree, e.g. the category "Orders" in Data > Documents."""
+    item = find(root, "TreeItemControl", name, depth=14)
+    item.GetPattern(P.SelectionItemPattern).Select()
+    time.sleep(1)
+    pause()
+
+
 def tab_names(window) -> list[str]:
     """Names of all editor/view tabs. A leading '*' means unsaved changes."""
     return [c.Name for c, _depth in auto.WalkControl(window, maxDepth=10)
